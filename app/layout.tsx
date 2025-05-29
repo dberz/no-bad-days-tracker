@@ -9,14 +9,13 @@ import { Footer } from "@/components/footer"
 import { StoreHydration } from "@/components/store-hydration"
 import { ModalProvider } from "@/contexts/modal-context"
 import { ModalContainer } from "@/components/modal-container"
-import { CtaContainer } from "@/components/cta-container"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "Social Substance Harm Tracker",
   description: "Track your substance use, understand your patterns, and make informed decisions about your health.",
-    generator: 'v0.dev'
+  generator: 'v0.dev'
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -33,7 +32,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
             <Toaster />
             <ModalContainer />
-            <CtaContainer />
           </ModalProvider>
         </ThemeProvider>
       </body>

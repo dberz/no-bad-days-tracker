@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { InfoIcon, PlusCircle, LineChart as LineChartIcon, PieChart as PieChartIcon } from "lucide-react"
 import { format, subMonths, differenceInDays, addDays, isSameDay, isAfter } from "date-fns"
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Area, ReferenceLine } from "recharts"
 import { cn } from "@/lib/utils"
 import { SubstanceIcon } from "./substance-icons"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,9 @@ import { useModal } from "@/contexts/modal-context"
 import { useLogsStore } from "@/lib/store/useLogsStore"
 import { SubstanceDistribution } from "./substance-distribution"
 import { SubstanceLog } from "./substance-log"
+import { TestUserToggle } from "@/components/test-user-toggle"
+import { SubstanceLogDialog } from "@/components/substance-log-dialog"
+import { InterventionLogDialog } from "@/components/intervention-log-dialog"
 
 // Define the substance log type
 interface SubstanceLog {
@@ -28,6 +31,7 @@ interface SubstanceLog {
   notes_during: string | null
   notes_after: string | null
   harm_points: number
+  user_id: string
 }
 
 // Define the chart data type
@@ -96,6 +100,51 @@ const ANIMATION_CONFIG = {
   easing: "ease-out",
 } as const
 
+// Helper: get color by substance category
+const SUBSTANCE_CATEGORY: Record<string, string> = {
+  cannabis: "cannabis",
+  marijuana: "cannabis",
+  weed: "cannabis",
+  smoked: "cannabis",
+  edible: "cannabis",
+  alcohol: "alcohol",
+  beer: "alcohol",
+  wine: "alcohol",
+  liquor: "alcohol",
+  spirits: "alcohol",
+  nicotine: "nicotine",
+  caffeine: "caffeine",
+  stimulants: "stimulants",
+  prescription: "stimulants",
+  adderall: "stimulants",
+  ritalin: "stimulants",
+  cocaine: "stimulants",
+  crack: "stimulants",
+  meth: "stimulants",
+  amphetamine: "stimulants",
+  mdma: "psychedelics",
+  ketamine: "psychedelics",
+  psychedelics: "psychedelics",
+  lsd: "psychedelics",
+  acid: "psychedelics",
+  psilocybin: "psychedelics",
+  mushrooms: "psychedelics",
+  shrooms: "psychedelics",
+}
+const SUBSTANCE_COLORS = {
+  cannabis: "#22c55e", // green
+  stimulants: "#ef4444", // red
+  psychedelics: "#3b82f6", // blue
+  alcohol: "#f59e0b", // orange
+  nicotine: "#eab308", // yellow
+  caffeine: "#a16207", // brown
+  other: "#6b7280", // gray
+}
+const getSubstanceColor = (substance: string) => {
+  const category = SUBSTANCE_CATEGORY[substance] || "other"
+  return SUBSTANCE_COLORS[category as keyof typeof SUBSTANCE_COLORS] || SUBSTANCE_COLORS.other
+}
+
 export function CombinedHarmIndex({ userId, showLogButton = true, className }: CombinedHarmIndexProps) {
   const [chartData, setChartData] = useState<ChartData[]>([])
   const [currentScore, setCurrentScore] = useState(0)
@@ -110,6 +159,14 @@ export function CombinedHarmIndex({ userId, showLogButton = true, className }: C
 
   // Get logs from the Zustand store
   const logs = useLogsStore((state) => state.logs)
+
+  // Get current test user id from localStorage (client only)
+  const [testUserId, setTestUserId] = useState<string | null>(null)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setTestUserId(localStorage.getItem('test_user_id'))
+    }
+  }, [])
 
   // Add animation state
   const [isAnimating, setIsAnimating] = useState(false)
@@ -144,7 +201,11 @@ export function CombinedHarmIndex({ userId, showLogButton = true, className }: C
       const storedLogs = localStorage.getItem("standalone_substance_logs")
       if (storedLogs) {
         console.log("Found logs:", storedLogs)
-        const logs = JSON.parse(storedLogs) as SubstanceLog[]
+        let logs = JSON.parse(storedLogs) as SubstanceLog[]
+        // Filter logs for current test user
+        if (testUserId) {
+          logs = logs.filter(log => log.user_id === testUserId)
+        }
 
         // Filter logs for the last 3 months
         const now = new Date()
@@ -299,7 +360,7 @@ export function CombinedHarmIndex({ userId, showLogButton = true, className }: C
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [testUserId])
 
   useEffect(() => {
     // Load data initially
@@ -369,8 +430,9 @@ export function CombinedHarmIndex({ userId, showLogButton = true, className }: C
               <p className="text-sm font-medium text-gray-600">Substances:</p>
               <ul className="list-disc pl-5 mt-1">
                 {dataPoint.substances.map((substance, idx) => (
-                  <li key={idx} className="text-sm">
-                    {substance.type}: {substance.amount} {substance.units}
+                  <li key={idx} className="text-sm flex items-center gap-2">
+                    <SubstanceIcon name={substance.type} className="h-4 w-4" />
+                    <span>{substance.type}: {substance.amount} {substance.units}</span>
                   </li>
                 ))}
               </ul>
@@ -395,44 +457,80 @@ export function CombinedHarmIndex({ userId, showLogButton = true, className }: C
   }
 
   return (
-    <Card className={cn("", className)}>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          Your Harm Recovery Index
-          <InfoIcon className="h-4 w-4 text-muted-foreground" />
-        </CardTitle>
-        <CardDescription>
-          Track your recovery progress and healing journey over time. Lower scores indicate better recovery.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-8">
-          {/* Simplified Stats */}
-          <div className="grid gap-4 grid-cols-2">
-            <div className="p-4 rounded-lg border bg-card">
-              <p className="text-sm font-medium text-muted-foreground mb-1">Current Recovery Score</p>
-              <div className="flex items-baseline gap-2">
-                <p className={cn("text-3xl font-bold", getScoreColor(chartData[chartData.length - 1]?.harmScore || 0))}>
-                  {(chartData[chartData.length - 1]?.harmScore || 0).toFixed(1)}
-                </p>
-                <p className="text-sm text-muted-foreground">/100</p>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">Lower is better</p>
-            </div>
-            <div className="p-4 rounded-lg border bg-card">
-              <p className="text-sm font-medium text-muted-foreground mb-1">Recovery Progress</p>
-              <p className="text-3xl font-bold text-green-500">
-                {decayReduction > 0 ? `+${decayReduction.toFixed(1)}` : "0.0"}
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">Points recovered</p>
+    <Card className={cn("relative", className)}>
+      <div className="absolute top-2 right-2 z-10">
+        <TestUserToggle />
+      </div>
+      <CardHeader className="pb-4 border-b bg-gradient-to-b from-background to-muted/30 rounded-t-lg">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-2xl md:text-3xl font-bold">
+              Your Harm Recovery Index
+              <InfoIcon className="h-5 w-5 text-muted-foreground" />
+            </CardTitle>
+            <CardDescription className="mt-2 text-base text-muted-foreground max-w-xl">
+              Track your recovery progress and healing journey over time. Lower scores indicate better recovery.
+            </CardDescription>
+            <div className="flex gap-2 mt-4">
+              <SubstanceLogDialog buttonVariant="default" buttonSize="sm" className="rounded-full">
+                Log Substance
+              </SubstanceLogDialog>
+              <InterventionLogDialog buttonVariant="secondary" buttonSize="sm" className="rounded-full">
+                Log Intervention
+              </InterventionLogDialog>
             </div>
           </div>
-
+          <div className="flex flex-col gap-2 md:items-end">
+            <div className="flex gap-4">
+              <div className="p-4 rounded-lg border bg-card flex flex-col items-center min-w-[120px]">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Current Recovery Score</p>
+                <div className="flex items-baseline gap-2">
+                  <p className={cn("text-3xl font-bold", getScoreColor(chartData[chartData.length - 1]?.harmScore || 0))}>
+                    {(chartData[chartData.length - 1]?.harmScore || 0).toFixed(1)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">/100</p>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Lower is better</p>
+              </div>
+              <div className="p-4 rounded-lg border bg-card flex flex-col items-center min-w-[120px]">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Recovery Progress</p>
+                <p className="text-3xl font-bold text-green-500">
+                  {decayReduction > 0 ? `+${decayReduction.toFixed(1)}` : "0.0"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">Points recovered</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-8">
+        <div className="space-y-8">
           {/* Primary Chart - Full Width */}
           <div className="h-[400px] relative">
             {chartData.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full p-8 bg-gradient-to-b from-background to-muted/20 rounded-lg border border-dashed">
-                <div className="max-w-md text-center space-y-6">
+                {/* Example data chart with 50% opacity */}
+                <div className="absolute inset-0 opacity-50 pointer-events-none">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={[
+                        { date: "2024-01-01", harmIndex: 45, substances: 2, interventions: 1 },
+                        { date: "2024-01-02", harmIndex: 35, substances: 1, interventions: 2 },
+                        { date: "2024-01-03", harmIndex: 25, substances: 0, interventions: 3 },
+                        { date: "2024-01-04", harmIndex: 15, substances: 0, interventions: 2 },
+                        { date: "2024-01-05", harmIndex: 10, substances: 0, interventions: 1 },
+                      ]}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                      <XAxis dataKey="date" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                      <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} width={30} />
+                      <Area type="monotone" dataKey="harmIndex" stroke="none" fill="url(#gHarm)" />
+                      <Area type="monotone" dataKey="substances" stroke="none" fill="url(#gSub)" />
+                      <Area type="monotone" dataKey="interventions" stroke="none" fill="url(#gInt)" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="max-w-md text-center space-y-6 relative z-10">
                   <div className="flex flex-col items-center gap-2">
                     <div className="p-3 rounded-full bg-muted">
                       <LineChartIcon className="h-6 w-6 text-muted-foreground" />
@@ -505,6 +603,8 @@ export function CombinedHarmIndex({ userId, showLogButton = true, className }: C
                   <Tooltip content={<CustomTooltip />} />
                   {/* Background gradient */}
                   <rect x="0" y="0" width="100%" height="100%" fill="url(#recoveryGradient)" />
+                  <ReferenceLine y={25} stroke="#22c55e" strokeDasharray="3 3" label={{ value: 'Low Risk', position: 'right', fill: '#22c55e', fontSize: 12 }} />
+                  <ReferenceLine y={50} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: 'Moderate Risk', position: 'right', fill: '#f59e0b', fontSize: 12 }} />
                   <Line
                     type="monotone"
                     dataKey="harmScore"
@@ -517,10 +617,10 @@ export function CombinedHarmIndex({ userId, showLogButton = true, className }: C
                     dot={(props) => {
                       const dataPoint = chartData[props.index]
                       const score = dataPoint?.harmScore || 0
-                      const color = score < 25 ? "#22c55e" : score < 50 ? "#eab308" : "#ef4444"
                       const isLatest = props.index === chartData.length - 1
-                      
+                      let color = "#22c55e"
                       if (dataPoint?.substances && dataPoint.substances.length > 0) {
+                        color = getSubstanceColor(dataPoint.substances[0].type)
                         return (
                           <g transform={`translate(${props.cx},${props.cy})`}>
                             <circle 
@@ -531,11 +631,13 @@ export function CombinedHarmIndex({ userId, showLogButton = true, className }: C
                             <SubstanceIcon
                               name={dataPoint.substances[0].type}
                               className={cn(
-                                "h-4 w-4 text-white absolute",
+                                "h-4 w-4 absolute",
                                 isLatest && isAnimating && "animate-bounce"
                               )}
                               style={{
                                 transform: "translate(-8px, -8px)",
+                                color: color,
+                                fill: color,
                               }}
                             />
                           </g>
@@ -555,9 +657,6 @@ export function CombinedHarmIndex({ userId, showLogButton = true, className }: C
                     fill="url(#colorHarm)"
                     fillOpacity={1}
                   />
-                  {/* Reference lines for risk levels */}
-                  <line x1="0" y1="25" x2="100%" y2="25" stroke="#22c55e" strokeDasharray="3 3" />
-                  <line x1="0" y1="50" x2="100%" y2="50" stroke="#eab308" strokeDasharray="3 3" />
                 </LineChart>
               </ResponsiveContainer>
             )}

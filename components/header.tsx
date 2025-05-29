@@ -36,7 +36,7 @@ export function Header() {
       </div>
 
       {showHeaderText && (
-        <div className="container py-8 md:py-12">
+        <div className="container py-4 md:py-6">
           <div className="max-w-3xl">
             <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Social Substance Harm Tracker</h1>
             <p className="mt-4 text-lg text-muted-foreground">

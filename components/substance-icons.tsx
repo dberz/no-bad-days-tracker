@@ -89,25 +89,95 @@ export const MushroomIcon: FC<SVGProps<SVGSVGElement>> = (props) => (
   </svg>
 )
 
+// Custom MDMA icon
+export const MDMAIcon: FC<SVGProps<SVGSVGElement>> = (props) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M12 2v20" />
+    <path d="M2 12h20" />
+    <path d="M12 2a10 10 0 0 1 10 10" />
+    <path d="M12 2a10 10 0 0 0-10 10" />
+    <path d="M12 22a10 10 0 0 1-10-10" />
+    <path d="M12 22a10 10 0 0 0 10-10" />
+  </svg>
+)
+
+// Custom LSD icon
+export const LSDIcon: FC<SVGProps<SVGSVGElement>> = (props) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M12 2v20" />
+    <path d="M2 12h20" />
+    <path d="M12 2a10 10 0 0 1 10 10" />
+    <path d="M12 2a10 10 0 0 0-10 10" />
+    <path d="M12 22a10 10 0 0 1-10-10" />
+    <path d="M12 22a10 10 0 0 0 10-10" />
+    <circle cx="12" cy="12" r="2" />
+  </svg>
+)
+
 // Map substance types to icon components or Lucide icon names
 const substanceIconMap: Record<string, string | FC<SVGProps<SVGSVGElement>>> = {
+  // Alcohol
   alcohol: "Wine",
   beer: "Beer",
   wine: "Wine",
   liquor: "Cocktail",
+  spirits: "Cocktail",
+  
+  // Cannabis
   cannabis: CannabisIcon,
+  marijuana: CannabisIcon,
+  weed: CannabisIcon,
   smoked: CannabisIcon,
   edible: "Cookie",
-  mdma: "Pill",
+  vape: "Cloud",
+  
+  // Psychedelics
+  mdma: MDMAIcon,
+  ecstasy: MDMAIcon,
+  molly: MDMAIcon,
   ketamine: KetamineIcon,
   psychedelics: AtomicIcon,
-  lsd: "Sparkles",
+  lsd: LSDIcon,
+  acid: LSDIcon,
   psilocybin: MushroomIcon,
+  mushrooms: MushroomIcon,
+  shrooms: MushroomIcon,
+  
+  // Stimulants
   nicotine: "Cigarette",
   caffeine: "Coffee",
   stimulants: "Zap",
   prescription: "Pill",
+  adderall: "Pill",
+  ritalin: "Pill",
   cocaine: "Snowflake",
+  crack: "Snowflake",
+  meth: "Zap",
+  amphetamine: "Zap",
+  
+  // Interventions
   sleep: "Moon",
   exercise: "Dumbbell",
   meditation: "Heart",
@@ -117,6 +187,9 @@ const substanceIconMap: Record<string, string | FC<SVGProps<SVGSVGElement>>> = {
   social: "Users",
   therapy: "HeartHandshake",
   recovery: "Leaf",
+  
+  // Default
+  default: "Pill",
 }
 
 interface SubstanceIconProps extends SVGProps<SVGSVGElement> {
@@ -129,7 +202,7 @@ export const SubstanceIcon: FC<SubstanceIconProps> = ({ name, className = "", ..
   const normalizedName = name?.toLowerCase().replace(/\s+/g, "") || ""
 
   // Get the icon from the map, or use a default
-  const iconValue = substanceIconMap[normalizedName] || "Pill"
+  const iconValue = substanceIconMap[normalizedName] || substanceIconMap.default
 
   // If the icon is a component (custom SVG), render it directly
   if (typeof iconValue !== "string") {
@@ -144,5 +217,5 @@ export const SubstanceIcon: FC<SubstanceIconProps> = ({ name, className = "", ..
 // Helper function to get the appropriate icon for a substance type
 export function getSubstanceIcon(type: string): FC<SVGProps<SVGSVGElement>> | string {
   const normalizedType = type?.toLowerCase().replace(/\s+/g, "") || ""
-  return substanceIconMap[normalizedType] || "Pill"
+  return substanceIconMap[normalizedType] || substanceIconMap.default
 }
